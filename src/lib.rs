@@ -119,7 +119,8 @@ fn send_event_custom(fd: RawFd, event: input_event) -> Result<()> {
     }
 }
 
-
+/// Create a name for a device with this one.
+/// This converts a string to the format that uinput uses.
 pub fn name_from_str(name: &str) -> Result<[i8; 80]> {
     let mut name_list = [0i8; 80];
 
@@ -139,7 +140,11 @@ pub fn name_from_str(name: &str) -> Result<[i8; 80]> {
     Ok(name_list)
 }
 
-#[repr(C)]
+/// Represents device features.
+/// The only difference this struct has compared to the uinput_user_dev struct is that this one has
+/// default() implemented.
+/// But unfortunately this is the one you have to use for this module.
+/// But it's not hard to modify this library to take in the uinput_user_dev struct.
 pub struct UInputUserDevice {
     pub name: [i8; 80],
     pub id: libc::input_id,
@@ -151,6 +156,7 @@ pub struct UInputUserDevice {
 }
 
 impl UInputUserDevice {
+    /// Converts this to a struct that the kernel understands.
     pub fn as_uinput_user_dev(&self) -> uinput_user_dev {
         uinput_user_dev { name: self.name, id: self.id, ff_effects_max: self.ff_effects_max, absmax: self.absmax, absmin: self.absmin, absfuzz: self.absfuzz, absflat: self.absflat }
     }
@@ -175,12 +181,50 @@ impl Default for UInputUserDevice {
     }
 }
 
+/// Represents a virtual device.
+///
+/// Example:
+/// ```rust
+/// use std::{thread::sleep, time::Duration};
+/// 
+/// use uinput_rs::Device;
+/// 
+/// // Enable these events for the device
+/// // (1, 272): BTN_MOUSE
+/// // (2, 0): REL_X
+/// // (2, 1): REL_Y
+/// let events = vec![(1, 272), (2, 0), (2, 1)];
+/// 
+/// // Create device with the default configuration.
+/// // Enable the events for the device by passing them.
+/// let device = Device::new(events).unwrap();
+/// 
+/// // Wait for the kernel to initialize the device.
+/// sleep(Duration::from_millis(100));
+/// 
+/// for _ in 0..1000 {
+///     // move to the right
+///     device.emit_silent(2, 0, 1);
+///     // Fire the events
+///     device.sync_silent();
+/// 
+///     sleep(Duration::from_millis(1));
+/// }
+/// // Mouse down
+/// device.emit_silent(1, 272, 1);
+/// device.sync_silent();
+/// sleep(Duration::from_millis(5));
+/// // Mouse up
+/// device.emit_silent(1, 272, 0);
+/// device.sync_silent();
+/// ```
 pub struct Device {
     file: File,
 }
 
 impl Device {
-    /// Create new default device
+    /// Create new virtual device with defaults.
+    /// Events are in the format: [(TYPE, CODE)]
     pub fn new(events: Vec<(u64, u64)>) -> Result<Self> {
         let file = open_uinput()?;
 
@@ -195,7 +239,8 @@ impl Device {
         Ok(Device { file })
     }
 
-    /// Create new device with custom properties
+    /// Create new device with custom properties.
+    /// Events are in the format: [(TYPE, CODE)]
     pub fn new_custom(events: Vec<(u64, u64)>, device: &UInputUserDevice) -> Result<Self> {
         let file = open_uinput()?;
 
@@ -210,26 +255,31 @@ impl Device {
         Ok(Device { file })
     }
 
+    /// Emit a single event.
     /// Remember to call sync to send the events.
     pub fn emit(&self, event_type: u16, code: u16, value: i32) -> Result<()> {
         send_event(self.file.as_raw_fd(), event_type, code, value)
     }
 
+    /// Emit an event but ignore the result.
     pub fn emit_silent(&self, event_type: u16, code: u16, value: i32) {
-        self.emit(event_type, code, value).unwrap();
+        let _ = self.emit(event_type, code, value);
     }
 
+    /// Emit a custom event by giving in the input_event struct from libc.
     /// Remember to call sync to send the events.
     pub fn emit_custom(&self, event: input_event) -> Result<()> {
         send_event_custom(self.file.as_raw_fd(), event)
     }
 
+    /// Fires all emitted events in queue.
     pub fn sync(&self) -> Result<()> {
         self.emit(EV_SYN, SYN_REPORT, 0)
     }
 
+    /// Same as sync() but ignores the result.
     pub fn sync_silent(&self) {
-        self.sync().unwrap()
+        let _ = self.sync();
     }
 
     /// Destroys the current device.
