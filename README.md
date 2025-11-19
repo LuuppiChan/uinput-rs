@@ -44,4 +44,4 @@ fn main() {
     device.emit_silent(1, 272, 0);
     device.sync_silent();
 }
-´´´
+```
