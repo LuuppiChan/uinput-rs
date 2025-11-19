@@ -4,6 +4,8 @@ API for uinput kernel module.
 # Why?
 I wanted a similar kind of API as this: [python-uinput](https://github.com/pyinput/python-uinput)
 
+Also I need this for a Godot project.
+
 # Examples
 You can use the constants from another library or just plain numbers.
 ## Mouse
