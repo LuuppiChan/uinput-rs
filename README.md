@@ -5,7 +5,7 @@ API for uinput kernel module.
 I wanted a similar kind of API as this: [python-uinput](https://github.com/pyinput/python-uinput)
 
 # Examples
-You can use the EV constants or just plain numbers (like I do)
+You can use the constants from another library or just plain numbers.
 ## Mouse
 ```rust
 use std::{thread::sleep, time::Duration};
