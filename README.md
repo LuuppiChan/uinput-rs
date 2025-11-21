@@ -1,10 +1,10 @@
 # uinput-rs
-API for uinput kernel module.
+API for uinput kernel module with minimal guardrails.
 
 # Why?
 I wanted a similar kind of API as this: [python-uinput](https://github.com/pyinput/python-uinput)
 
-Also I need this for a Godot project.
+And I need this for a Godot project and the existing libraries (that I looked at) have guardrails that would make using them really hard.
 
 # Examples
 You can use the constants from another library or just plain numbers.
