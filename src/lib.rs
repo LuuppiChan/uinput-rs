@@ -1,4 +1,4 @@
-// Rust API for the uinput kernel module with minimal guardrails. 
+// Rust API for the uinput kernel module with minimal guardrails.
 
 // Cross-reference this with other implementations
 use std::{
@@ -318,6 +318,16 @@ impl Device {
     /// Emit an event but ignore the result.
     pub fn emit_silent(&self, event_type: u16, code: u16, value: i32) {
         let _ = self.emit(event_type, code, value);
+    }
+
+    /// Same as emit but using the key code format.
+    pub fn emit_key_code(&self, key_code: (u64, u64), value: i32) -> Result<()> {
+        self.emit(key_code.0 as u16, key_code.1 as u16, value)
+    }
+
+    /// Same as emit_key_code but ignores the answer.
+    pub fn emit_key_code_silent(&self, key_code: (u64, u64), value: i32) {
+        let _ = self.emit_key_code(key_code, value);
     }
 
     /// Emit a custom event by giving in the input_event struct from libc.
