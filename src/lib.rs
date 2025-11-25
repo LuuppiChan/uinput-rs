@@ -1,12 +1,22 @@
+// Rust API for the uinput kernel module with minimal guardrails. 
+
 // Cross-reference this with other implementations
 use std::{
-    ffi::CString, fs::{File, OpenOptions}, io::{self, Result}, os::fd::{AsRawFd, RawFd}
+    ffi::CString,
+    fs::{File, OpenOptions},
+    io::{self, Result},
+    os::fd::{AsRawFd, RawFd},
 };
 
-use libc::{input_event, timeval, uinput_user_dev};
+// Expose these for convenience
+pub use libc::{input_event, input_id, timeval, uinput_user_dev};
+
+/// Key codes for convenience.
+/// Use these when enabling keys.
+/// Converted from python-uinput.
+pub mod key_codes;
 
 // These constants come from <linux/uinput.h>
-//
 pub const UI_SET_EVBIT: u64 = 0x40045564;
 pub const UI_SET_KEYBIT: u64 = 0x40045565;
 pub const UI_SET_RELBIT: u64 = 0x40045566;
@@ -125,12 +135,18 @@ pub fn name_from_str(name: &str) -> Result<[i8; 80]> {
     let mut name_list = [0i8; 80];
 
     let c_name = CString::new(name).map_err(|_| {
-        io::Error::new(io::ErrorKind::InvalidInput, "Device name contains null byte")
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Device name contains null byte",
+        )
     })?;
 
     let bytes = c_name.as_bytes_with_nul();
     if bytes.len() > name_list.len() {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Device name too long"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Device name too long",
+        ));
     }
 
     for (i, &b) in bytes.iter().enumerate() {
@@ -143,22 +159,60 @@ pub fn name_from_str(name: &str) -> Result<[i8; 80]> {
 /// Represents device features.
 /// The only difference this struct has compared to the uinput_user_dev struct is that this one has
 /// default() implemented.
+/// And this has better comments.
 /// But unfortunately this is the one you have to use for this module.
 /// But it's not hard to modify this library to take in the uinput_user_dev struct.
 pub struct UInputUserDevice {
+    /// Human readable name of the device.
+    /// Use the name_from_str to convert a str to this format.
     pub name: [i8; 80],
-    pub id: libc::input_id,
+    /// Device identification.
+    /// bustype: Tells the kernel what type of bus the device pretends to be on: USB, Bluetooth, PCI, etc. Examples: BUS_USB, BUS_BLUETOOTH, BUS_VIRTUAL.
+    /// vendor: Vendor ID (e.g., 0x046D for Logitech).
+    /// product: Product ID (e.g., device's model number).
+    /// version: Hardware/firmware version number.
+    /// These values influence how userspace treats the device (e.g., quirks).
+    pub id: input_id,
+    /// Maximum number of force-feedback (FF) effects the device can support simultaneously.
+    /// Only used if you enable force-feedback capability bits (e.g., EV_FF, FF_RUMBLE, etc.).
+    /// If not using, set to 0.
     pub ff_effects_max: u32,
+    /// Maximum value the specific axis can report.
+    /// Each value in the list is an axis.
+    /// For example first one is X, second Y, third Z etc.
     pub absmax: [i32; 64],
+    /// Minimum value the specific axis can report.
+    /// Each value in the list is an axis.
+    /// For example first one is X, second Y, third Z etc.
     pub absmin: [i32; 64],
+    /// Noise threshold filter used by userspace for smoothing or ignoring small value changes.
+    /// Each value in the list is an axis.
+    /// For example first one is X, second Y, third Z etc.
     pub absfuzz: [i32; 64],
+    /// Used mainly for joysticks.
+    /// Values inside [-absflat, +absflat] are interpreted as centered (0).
+    /// Helps eliminate drift of analog sticks.
+    ///
+    /// Example for a gamepad:
+    /// absflat[ABS_X] = 128;
+    ///
+    /// Each value in the list is an axis.
+    /// For example first one is X, second Y, third Z etc.
     pub absflat: [i32; 64],
 }
 
 impl UInputUserDevice {
     /// Converts this to a struct that the kernel understands.
     pub fn as_uinput_user_dev(&self) -> uinput_user_dev {
-        uinput_user_dev { name: self.name, id: self.id, ff_effects_max: self.ff_effects_max, absmax: self.absmax, absmin: self.absmin, absfuzz: self.absfuzz, absflat: self.absflat }
+        uinput_user_dev {
+            name: self.name,
+            id: self.id,
+            ff_effects_max: self.ff_effects_max,
+            absmax: self.absmax,
+            absmin: self.absmin,
+            absfuzz: self.absfuzz,
+            absflat: self.absflat,
+        }
     }
 }
 
@@ -166,7 +220,7 @@ impl Default for UInputUserDevice {
     fn default() -> Self {
         Self {
             name: name_from_str("rusty-device").unwrap(),
-            id: libc::input_id {
+            id: input_id {
                 bustype: 0x03, // BUS_USB
                 vendor: 0x1,
                 product: 0x1,
@@ -186,28 +240,28 @@ impl Default for UInputUserDevice {
 /// Example:
 /// ```rust
 /// use std::{thread::sleep, time::Duration};
-/// 
+///
 /// use uinput_rs::Device;
-/// 
+///
 /// // Enable these events for the device
 /// // (1, 272): BTN_MOUSE
 /// // (2, 0): REL_X
 /// // (2, 1): REL_Y
 /// let events = vec![(1, 272), (2, 0), (2, 1)];
-/// 
+///
 /// // Create device with the default configuration.
 /// // Enable the events for the device by passing them.
 /// let device = Device::new(events).unwrap();
-/// 
+///
 /// // Wait for the kernel to initialize the device.
 /// sleep(Duration::from_millis(100));
-/// 
+///
 /// for _ in 0..1000 {
 ///     // move to the right
 ///     device.emit_silent(2, 0, 1);
 ///     // Fire the events
 ///     device.sync_silent();
-/// 
+///
 ///     sleep(Duration::from_millis(1));
 /// }
 /// // Mouse down
