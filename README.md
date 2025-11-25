@@ -46,3 +46,20 @@ fn main() {
     device.sync_silent();
 }
 ```
+
+## Destroying the device
+The device is automatically destroyed while dropping the variable, but if you want to drop it manually you can just use built-in functions for that.
+```rust
+use uinput_rs::{
+    Device,
+    key_codes::{KEY_R, KEY_S},
+};
+
+fn main() {
+    let device = Device::new(vec![KEY_R, KEY_S]).unwrap();
+    // Destroy the device the same way you drop variables.
+    drop(device);
+
+    println!("Device doesn't exist here anymore.");
+} // It would normally be dropped here.
+```
