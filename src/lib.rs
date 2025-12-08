@@ -12,8 +12,7 @@ use std::{
 pub use libc::{input_event, input_id, timeval, uinput_user_dev};
 
 /// Key codes for convenience.
-/// Use these when enabling keys.
-/// Converted from python-uinput.
+/// You can use these when enabling keys.
 pub mod key_codes;
 
 // These constants come from <linux/uinput.h>
@@ -180,14 +179,20 @@ pub struct UInputUserDevice {
     /// Maximum value the specific axis can report.
     /// Each value in the list is an axis.
     /// For example first one is X, second Y, third Z etc.
+    /// Some axis like pen tilt and others are at custom indexes.
+    /// Pro tip is to use the same index as the key code of the event.
     pub absmax: [i32; 64],
     /// Minimum value the specific axis can report.
     /// Each value in the list is an axis.
     /// For example first one is X, second Y, third Z etc.
+    /// Some axis like pen tilt and others are at custom indexes.
+    /// Pro tip is to use the same index as the key code of the event.
     pub absmin: [i32; 64],
     /// Noise threshold filter used by userspace for smoothing or ignoring small value changes.
     /// Each value in the list is an axis.
     /// For example first one is X, second Y, third Z etc.
+    /// Some axis like pen tilt and others are at custom indexes.
+    /// Pro tip is to use the same index as the key code of the event.
     pub absfuzz: [i32; 64],
     /// Used mainly for joysticks.
     /// Values inside [-absflat, +absflat] are interpreted as centered (0).
@@ -216,6 +221,36 @@ impl UInputUserDevice {
     }
 }
 
+impl UInputUserDevice {
+    /// Define absinfo for the specific event type.
+    /// absmin: Minimum value this axis can have.
+    /// absmax: Maximum value this axis can have.
+    /// absfuzz: Noise threshold filter used by userspace for smoothing or 
+    /// ignoring small value changes.
+    /// absflat: Used for joysticks. (Read struct field to learn slightly more.)
+    ///
+    /// It's your responsibility to make sure that you input valid key codes.
+    ///
+    /// # Panics
+    /// This will panic if the event key code is bigger than 64.
+    /// If that happens it's either not a supported key code or 
+    /// I've understood this absinfo incorrectly.
+    pub fn absinfo(
+        &mut self,
+        event: (u64, u64),
+        absmin: i32,
+        absmax: i32,
+        absfuzz: i32,
+        absflat: i32,
+    ) {
+        let i = event.1 as usize;
+        self.absmax[i] = absmax;
+        self.absmin[i] = absmin;
+        self.absfuzz[i] = absfuzz;
+        self.absflat[i] = absflat;
+    }
+}
+
 impl Default for UInputUserDevice {
     fn default() -> Self {
         Self {
@@ -240,7 +275,7 @@ impl Default for UInputUserDevice {
 /// Example:
 /// ```rust
 /// use std::{thread::sleep, time::Duration};
-/// 
+///
 /// use uinput_rs::{
 ///     Device,
 ///     key_codes::{BTN_MOUSE, REL_X, REL_Y},
@@ -248,26 +283,26 @@ impl Default for UInputUserDevice {
 ///
 /// // Enable these events for the device
 /// let events = vec![BTN_MOUSE, REL_Y, REL_X];
-/// 
+///
 /// // Create device with the default configuration.
 /// // Enable the events for the device by passing them.
 /// let device = Device::new(events).unwrap();
-/// 
+///
 /// // Wait for the user space to initialize the device.
 /// sleep(Duration::from_millis(100));
-/// 
+///
 /// for _ in 0..1000 {
 ///     // move to the right
 ///     device.emit_key_code_silent(REL_X, 1);
 ///     // Fire the events
 ///     device.sync_silent();
-/// 
+///
 ///     sleep(Duration::from_millis(1));
 /// }
 /// // Mouse down
 /// device.emit_key_code_silent(BTN_MOUSE, 1);
 /// device.sync_silent();
-/// 
+///
 /// sleep(Duration::from_millis(5));
 /// // Mouse up
 /// device.emit_key_code_silent(BTN_MOUSE, 0);
@@ -280,11 +315,11 @@ pub struct Device {
 impl Device {
     /// Create new virtual device with defaults.
     /// Events are in the format: [(TYPE, CODE)]
-    pub fn new(events: Vec<(u64, u64)>) -> Result<Self> {
+    pub fn new(events: &[(u64, u64)]) -> Result<Self> {
         let file = open_uinput()?;
 
-        for (event_type, key) in events {
-            enable_key(file.as_raw_fd(), event_type, key)?;
+        for (event_type, key) in events.iter() {
+            enable_key(file.as_raw_fd(), *event_type, *key)?;
         }
 
         write_device(file.as_raw_fd(), &UInputUserDevice::default());
@@ -296,11 +331,11 @@ impl Device {
 
     /// Create new device with custom properties.
     /// Events are in the format: [(TYPE, CODE)]
-    pub fn new_custom(events: Vec<(u64, u64)>, device: &UInputUserDevice) -> Result<Self> {
+    pub fn new_custom(events: &[(u64, u64)], device: &UInputUserDevice) -> Result<Self> {
         let file = open_uinput()?;
 
-        for (event_type, key) in events {
-            enable_key(file.as_raw_fd(), event_type, key)?;
+        for (event_type, key) in events.iter() {
+            enable_key(file.as_raw_fd(), *event_type, *key)?;
         }
 
         write_device(file.as_raw_fd(), device);
