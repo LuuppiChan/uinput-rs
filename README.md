@@ -14,35 +14,35 @@ use std::{thread::sleep, time::Duration};
 
 use uinput_rs::{
     Device,
-    key_codes::{BTN_MOUSE, REL_X, REL_Y},
+    key_events::{BTN_MOUSE_EVENT, REL_X_EVENT, REL_Y_EVENT},
 };
 
 fn main() {
     // Enable these events for the device
-    let events = vec![BTN_MOUSE, REL_Y, REL_X];
+    let events = [BTN_MOUSE_EVENT, REL_Y_EVENT, REL_X_EVENT];
 
     // Create device with the default configuration.
     // Enable the events for the device by passing them.
-    let device = Device::new(events).unwrap();
+    let device = Device::new(&events).unwrap();
 
     // Wait for the user space to initialize the device.
     sleep(Duration::from_millis(100));
 
     for _ in 0..1000 {
         // move to the right
-        device.emit_key_code_silent(REL_X, 1);
+        device.emit_key_code_silent(REL_X_EVENT, 1);
         // Fire the events
         device.sync_silent();
 
         sleep(Duration::from_millis(1));
     }
     // Mouse down
-    device.emit_key_code_silent(BTN_MOUSE, 1);
+    device.emit_key_code_silent(BTN_MOUSE_EVENT, 1);
     device.sync_silent();
 
     sleep(Duration::from_millis(5));
     // Mouse up
-    device.emit_key_code_silent(BTN_MOUSE, 0);
+    device.emit_key_code_silent(BTN_MOUSE_EVENT, 0);
     device.sync_silent();
 }
 ```
