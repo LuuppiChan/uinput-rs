@@ -8,7 +8,7 @@ And I need this for a Godot project and the existing libraries (that I looked at
 
 # Examples
 You can use the constants from another library, just plain numbers or from the key_events module.
-## Mouse (DOES NOT WORK, WILL BE UPDATED LATER)
+## Mouse
 ```rust
 use std::{thread::sleep, time::Duration};
 
