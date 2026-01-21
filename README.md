@@ -7,8 +7,8 @@ I wanted a similar kind of API as this: [python-uinput](https://github.com/pyinp
 And I need this for a Godot project and the existing libraries (that I looked at) have guardrails that would make using them really hard.
 
 # Examples
-You can use the constants from another library, just plain numbers or from the key_codes module.
-## Mouse
+You can use the constants from another library, just plain numbers or from the key_events module.
+## Mouse (DOES NOT WORK, WILL BE UPDATED LATER)
 ```rust
 use std::{thread::sleep, time::Duration};
 
