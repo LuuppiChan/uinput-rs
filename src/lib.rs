@@ -10,6 +10,8 @@ pub mod key_codes;
 pub mod key_events;
 /// Some key types for convenience.
 pub mod key_types;
+mod traits;
 pub use device::*;
 /// Random device presets
 pub mod devices;
+pub use traits::*;
